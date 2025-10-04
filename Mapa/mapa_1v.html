@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Mundial del Clima en Tiempo Real</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f8ff;
+        }
+        
+        #header {
+            background: linear-gradient(to right, #1e3c72, #2a5298);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        #map-container {
+            display: flex;
+            height: calc(100vh - 100px);
+        }
+        
+        #map {
+            flex: 1;
+            height: 100%;
+        }
+        
+        #sidebar {
+            width: 300px;
+            background-color: white;
+            padding: 20px;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        #legend {
+            margin-top: 20px;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 4px;
+        }
+        
+        .city-info {
+            background-color: #f0f8ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .city-info h3 {
+            margin-top: 0;
+            color: #1e3c72;
+        }
+        
+        .weather-icon {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .temp {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2a5298;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        @media (max-width: 768px) {
+            #map-container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            #sidebar {
+                width: 100%;
+                height: 300px;
+            }
+            
+            #map {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>Mapa Mundial del Clima en Tiempo Real</h1>
+        <p>Los colores indican las condiciones climáticas actuales</p>
+    </div>
+    
+    <div id="map-container">
+        <div id="map"></div>
+        <div id="sidebar">
+            <h2>Información del Clima</h2>
+            <div id="city-info-container">
+                <div class="loading">Haz clic en cualquier ciudad para ver el clima actual</div>
+            </div>
+            
+            <div id="legend">
+                <h3>Leyenda del Clima</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ffeb3b;"></div>
+                    <span>Soleado / Despejado</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #2196f3;"></div>
+                    <span>Nublado / Parcialmente nublado</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #4caf50;"></div>
+                    <span>Lluvia ligera / Llovizna</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #1976d2;"></div>
+                    <span>Lluvia moderada / Intensa</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #9c27b0;"></div>
+                    <span>Tormenta / Tormenta eléctrica</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #795548;"></div>
+                    <span>Nieve / Aguanieve</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #607d8b;"></div>
+                    <span>Niebla / Bruma</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Inicializar el mapa
+        const map = L.map('map').setView([20, 0], 2);
+        
+        // Añadir capa base del mapa
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Lista de ciudades importantes con sus coordenadas
+        const cities = [
+            { name: "Nueva York", lat: 40.7128, lon: -74.0060 },
+            { name: "Londres", lat: 51.5074, lon: -0.1278 },
+            { name: "Tokio", lat: 35.6762, lon: 139.6503 },
+            { name: "Sídney", lat: -33.8688, lon: 151.2093 },
+            { name: "Ciudad de México", lat: 19.4326, lon: -99.1332 },
+            { name: "Moscú", lat: 55.7558, lon: 37.6173 },
+            { name: "El Cairo", lat: 30.0444, lon: 31.2357 },
+            { name: "Buenos Aires", lat: -34.6037, lon: -58.3816 },
+            { name: "Pekín", lat: 39.9042, lon: 116.4074 },
+            { name: "Nueva Delhi", lat: 28.6139, lon: 77.2090 },
+            { name: "Río de Janeiro", lat: -22.9068, lon: -43.1729 },
+            { name: "Los Ángeles", lat: 34.0522, lon: -118.2437 },
+            { name: "París", lat: 48.8566, lon: 2.3522 },
+            { name: "Berlín", lat: 52.5200, lon: 13.4050 },
+            { name: "Madrid", lat: 40.4168, lon: -3.7038 },
+            { name: "Roma", lat: 41.9028, lon: 12.4964 },
+            { name: "Toronto", lat: 43.6532, lon: -79.3832 },
+            { name: "Sao Paulo", lat: -23.5505, lon: -46.6333 },
+            { name: "Estambul", lat: 41.0082, lon: 28.9784 },
+            { name: "Bangkok", lat: 13.7563, lon: 100.5018 }
+        ];
+        
+        // Función para obtener el color según las condiciones climáticas
+        function getWeatherColor(weatherId) {
+            // Basado en los códigos de condición climática de OpenWeatherMap
+            if (weatherId >= 200 && weatherId < 300) {
+                return '#9c27b0'; // Tormenta
+            } else if (weatherId >= 300 && weatherId < 600) {
+                return weatherId < 500 ? '#4caf50' : '#1976d2'; // Lluvia ligera o intensa
+            } else if (weatherId >= 600 && weatherId < 700) {
+                return '#795548'; // Nieve
+            } else if (weatherId >= 700 && weatherId < 800) {
+                return '#607d8b'; // Condiciones atmosféricas (niebla, etc.)
+            } else if (weatherId === 800) {
+                return '#ffeb3b'; // Despejado
+            } else if (weatherId > 800) {
+                return '#2196f3'; // Nublado
+            } else {
+                return '#cccccc'; // Por defecto
+            }
+        }
+        
+        // Función para obtener el icono del clima
+        function getWeatherIcon(weatherId) {
+            // Basado en los códigos de condición climática de OpenWeatherMap
+            if (weatherId >= 200 && weatherId < 300) {
+                return '⛈️';
+            } else if (weatherId >= 300 && weatherId < 600) {
+                return weatherId < 500 ? '🌧️' : '🌧️';
+            } else if (weatherId >= 600 && weatherId < 700) {
+                return '❄️';
+            } else if (weatherId >= 700 && weatherId < 800) {
+                return '🌫️';
+            } else if (weatherId === 800) {
+                return '☀️';
+            } else if (weatherId > 800) {
+                return '☁️';
+            } else {
+                return '🌈';
+            }
+        }
+        
+        // Función para obtener datos meteorológicos de una ciudad
+        async function getWeatherData(city) {
+            // En una implementación real, usarías una API como OpenWeatherMap
+            // Para este ejemplo, simularemos datos aleatorios
+            
+            // Simular una llamada a la API con un retraso
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Generar datos meteorológicos aleatorios
+            const weatherConditions = [
+                { id: 200, main: "Thunderstorm", description: "tormenta con lluvia ligera" },
+                { id: 300, main: "Drizzle", description: "llovizna" },
+                { id: 500, main: "Rain", description: "lluvia ligera" },
+                { id: 501, main: "Rain", description: "lluvia moderada" },
+                { id: 600, main: "Snow", description: "nieve ligera" },
+                { id: 701, main: "Mist", description: "neblina" },
+                { id: 800, main: "Clear", description: "cielo despejado" },
+                { id: 801, main: "Clouds", description: "algo nublado" },
+                { id: 802, main: "Clouds", description: "nubes dispersas" },
+                { id: 804, main: "Clouds", description: "muy nublado" }
+            ];
+            
+            const randomCondition = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
+            const temp = Math.floor(Math.random() * 40) - 5; // Temperatura entre -5°C y 35°C
+            const humidity = Math.floor(Math.random() * 100);
+            const windSpeed = Math.floor(Math.random() * 20);
+            
+            return {
+                name: city.name,
+                lat: city.lat,
+                lon: city.lon,
+                temp: temp,
+                humidity: humidity,
+                windSpeed: windSpeed,
+                weather: [randomCondition]
+            };
+        }
+        
+        // Función para mostrar información de la ciudad
+        function displayCityInfo(weatherData) {
+            const container = document.getElementById('city-info-container');
+            const weather = weatherData.weather[0];
+            
+            container.innerHTML = `
+                <div class="city-info">
+                    <h3>${weatherData.name}</h3>
+                    <div style="display: flex; align-items: center;">
+                        <span style="font-size: 40px; margin-right: 10px;">${getWeatherIcon(weather.id)}</span>
+                        <div>
+                            <div class="temp">${weatherData.temp}°C</div>
+                            <div>${weather.description}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <div>Humedad: ${weatherData.humidity}%</div>
+                        <div>Viento: ${weatherData.windSpeed} km/h</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Añadir marcadores para cada ciudad
+        cities.forEach(async (city) => {
+            const weatherData = await getWeatherData(city);
+            const weather = weatherData.weather[0];
+            const color = getWeatherColor(weather.id);
+            
+            // Crear un marcador circular con el color del clima
+            const circle = L.circleMarker([city.lat, city.lon], {
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.7,
+                radius: 8
+            }).addTo(map);
+            
+            // Añadir información al hacer clic
+            circle.bindPopup(`
+                <b>${city.name}</b><br>
+                ${weather.description}<br>
+                Temperatura: ${weatherData.temp}°C
+            `);
+            
+            // Mostrar información detallada al hacer clic
+            circle.on('click', () => {
+                displayCityInfo(weatherData);
+            });
+        });
+        
+        // Actualizar datos cada 5 minutos (en una implementación real)
+        setInterval(async () => {
+            // En una implementación real, aquí actualizarías los datos de la API
+            console.log("Actualizando datos meteorológicos...");
+        }, 300000); // 5 minutos
+    </script>
+</body>
+</html>
