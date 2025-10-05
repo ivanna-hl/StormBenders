@@ -1,3 +1,4 @@
+
 # Mapa/controlador/mapa_controller.py
 
 import folium
@@ -10,22 +11,47 @@ class MapaController:
 
     def generar_mapa_interactivo(self):
         """
-        Genera un mapa interactivo con LayerControl visualmente atractivo.
+        Genera un mapa interactivo con fondo satelital NASA WorldView (GIBS)
+        y menú visualmente atractivo.
         """
-        # Crear mapa centrado en México
+
+        # Crear mapa centrado en México SIN tiles por defecto
         mapa = folium.Map(
             location=[23.6345, -102.5528],
             zoom_start=5,
             tiles=None
         )
 
-        # --- Capa base con nombre personalizado ---
-        folium.TileLayer(
-            tiles="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            attr="&copy; OpenStreetMap contributors",
-            name="Clima en tiempo real",
-            control=True
+        # --- 🌎 Capa base NASA GIBS (WorldView) ---
+        # Usamos la capa MODIS_Terra_CorrectedReflectance_TrueColor
+        # --- 🌍 Capa base NASA GIBS (WorldView) ---
+        # Primero creas todas las base layers
+        sat_layer = folium.TileLayer(
+            tiles="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg",
+            attr="NASA GIBS / WorldView",
+            name="Imágenes Satelitales NASA",
+            overlay=False,
+            control=True,
+            fmt="image/jpeg",
+            time="2025-10-01"
         ).add_to(mapa)
+
+        blank_layer = folium.TileLayer(
+            tiles="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            attr="Mapa en blanco con divisiones",
+            name="🗒️ Mapa en blanco",
+            overlay=False,
+            control=True,
+            opacity=0  # Hacemos el fondo completamente blanco
+        ).add_to(mapa)
+
+        mapa.get_root().html.add_child(folium.Element("""
+        <style>
+        .leaflet-tile-pane {
+            background-color: white !important;
+        }
+        </style>
+        """))
 
         # --- Tipos de clima ---
         tipos_clima = {
@@ -36,7 +62,7 @@ class MapaController:
             "Despejado 🌤️": "orange"
         }
 
-        # --- Capas de clima ---
+        # --- Capas de clima con puntos aleatorios ---
         for clima, color in tipos_clima.items():
             capa = folium.FeatureGroup(name=clima)
             for _ in range(25):
@@ -48,7 +74,7 @@ class MapaController:
                     radius=7,
                     color="white",
                     fill=True,
-                    fill_color=color.split(",")[0].replace("linear-gradient(45deg,", "").strip(),
+                    fill_color=color,
                     fill_opacity=0.7,
                     popup=popup_info
                 ).add_to(capa)
@@ -77,13 +103,44 @@ class MapaController:
                 icon=folium.Icon(color="red", icon="cloud")
             ).add_to(mapa)
 
-        # --- LayerControl ---
+        # --- Control de capas ---
         folium.LayerControl(collapsed=False).add_to(mapa)
 
-        # --- CSS para mejorar apariencia del menú ---
+        # --- Luego agregas los overlays fijos ---
+        folium.TileLayer(
+            tiles="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Reference_Features/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png",
+            attr="Reference Features",
+            overlay=True,
+            control=False,  # Siempre visible
+            fmt="image/png",
+            opacity=0.8,
+            time="2025-10-01"
+        ).add_to(mapa)
+
+        folium.TileLayer(
+            tiles="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Reference_Labels/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png",
+            attr="Reference Labels",
+            overlay=True,
+            control=False,
+            fmt="image/png",
+            opacity=0.9,
+            time="2025-10-01"
+        ).add_to(mapa)
+
+        folium.TileLayer(
+            tiles="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Coastlines/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png",
+            attr="Coastlines",
+            overlay=True,
+            control=False,
+            fmt="image/png",
+            opacity=0.8,
+            time="2025-10-01"
+        ).add_to(mapa)
+
+
+        # --- CSS personalizado para mantener el diseño atractivo ---
         css = """
         <style>
-        /* === PANEL PRINCIPAL === */
         .leaflet-control-layers {
             background: rgba(255, 255, 255, 0.95);
             border-radius: 16px;
@@ -94,7 +151,6 @@ class MapaController:
             max-width: 220px;
         }
 
-        /* === TÍTULO PRINCIPAL === */
         .leaflet-control-layers-base label {
             display: block;
             font-size: 17px;
@@ -106,7 +162,6 @@ class MapaController:
             padding-bottom: 5px;
         }
 
-        /* === OPCIONES DE CLIMA === */
         .leaflet-control-layers-overlays label {
             font-size: 15px;
             font-weight: 500;
@@ -125,7 +180,6 @@ class MapaController:
             cursor: pointer;
         }
 
-        /* === CHECKBOX REDONDEADOS === */
         .leaflet-control-layers-overlays input[type="checkbox"] {
             appearance: none;
             width: 18px;
@@ -147,16 +201,22 @@ class MapaController:
             color: white;
         }
 
-        /* === COLORES DE CADA OPCIÓN === */
         .leaflet-control-layers-overlays label:nth-child(1) input { background: linear-gradient(45deg, #FFD700, #FFA500); border: none; }
         .leaflet-control-layers-overlays label:nth-child(2) input { background: linear-gradient(45deg, #B0BEC5, #ECEFF1); border: none; }
         .leaflet-control-layers-overlays label:nth-child(3) input { background: linear-gradient(45deg, #4FC3F7, #0288D1); border: none; }
         .leaflet-control-layers-overlays label:nth-child(4) input { background: linear-gradient(45deg, #673AB7, #311B92); border: none; }
         .leaflet-control-layers-overlays label:nth-child(5) input { background: linear-gradient(45deg, #FFB74D, #FFE082); border: none; }
 
-        /* === RESPONSIVE === */
         @media (max-width: 768px) {
             .leaflet-control-layers { font-size: 14px; max-width: 180px; }
+        }
+
+        /* 🔝 Forzar que nombres y fronteras siempre estén encima */
+        .leaflet-overlay-pane {
+            z-index: 600 !important;
+        }
+        .leaflet-tile-pane {
+            z-index: 200 !important;
         }
         </style>
         """
@@ -164,4 +224,4 @@ class MapaController:
 
         # Guardar mapa
         mapa.save("mapa_mexico.html")
-        print("✅ Mapa interactivo generado: mapa_mexico.html")
+        print("✅ Mapa interactivo con imágenes de WorldView generado: mapa_mexico.html")
