@@ -1,5 +1,6 @@
 folium
 requests
+sklearn
 aiobotocore==2.24.2
 aiohappyeyeballs==2.6.1
 aiohttp==3.12.15
