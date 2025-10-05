@@ -1,34 +1,4 @@
 # Mapa/vista/mapa_ui.py
-'''
-import folium
-from folium import plugins
-
-class MapaUI:
-    """
-    Capa Vista: define la interfaz del mapa de México con capas base y controles.
-    """
-
-    def __init__(self):
-        self.mapa = folium.Map(location=[23.6345, -102.5528], zoom_start=5, tiles="CartoDB positron")
-
-    def agregar_marcador(self, lat, lon, texto):
-        folium.Marker(
-            [lat, lon],
-            popup=texto,
-            icon=folium.Icon(color="blue", icon="cloud")
-        ).add_to(self.mapa)
-
-    def agregar_capa_calor(self, puntos):
-        plugins.HeatMap(puntos).add_to(self.mapa)
-
-    def mostrar(self):
-        """
-        Muestra el mapa en un archivo HTML.
-        """
-        self.mapa.save("mapa_mexico.html")
-        print("✅ Mapa generado: mapa_mexico.html")
-'''
-# Mapa/vista/mapa_ui.py
 import folium
 from folium import plugins
 import webbrowser
